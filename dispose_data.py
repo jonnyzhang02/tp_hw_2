@@ -1,3 +1,13 @@
+'''
+Author: jonnyzhang02 71881972+jonnyzhang02@users.noreply.github.com
+Date: 2023-03-28 22:39:55
+LastEditors: jonnyzhang02 71881972+jonnyzhang02@users.noreply.github.com
+LastEditTime: 2023-04-08 22:17:47
+FilePath: \知识图谱作业2\dispose_data.py
+Description: coded by ZhangYang@BUPT, my email is zhangynag0207@bupt.edu.cn
+
+Copyright (c) 2023 by zhangynag0207@bupt.edu.cn, All Rights Reserved. 
+'''
 import os
 import re
 import json
@@ -14,8 +24,8 @@ def transfer_data():
     files = os.listdir("./data/location")  # 得到文件夹下的所有文件名称
     for file in files: # 遍历文件夹
         with open("./data/location/"+file, 'r', encoding='utf-8') as f: # 打开文件
-            text = f.read()
-            text = re.sub("\n", "", text)
+            text = f.read()                 # 读取文件
+            text = re.sub("\n", "", text)  # 去除换行符
             piece["label"] = list(range(len(text)))  # 标签、文本长度一致
 
             # 先将所有标签置为O
@@ -32,7 +42,7 @@ def transfer_data():
                     human_labels_index.append(i)
 
             # 去除人工标注的标签
-            piece["text"] = list(text) # 文本
+            piece["text"] = list(text) # 文本 
             for i in human_labels_index: 
                 piece["text"][i] = " " # 将人工标注的标签置为空格
             data.append(piece) # 添加到数据中
@@ -67,19 +77,19 @@ def transfer_data():
                 piece["text"][i] = " " # 将人工标注的标签置为空格
             
             data.append(piece) # 添加到数据中
-            piece = {}
+            piece = {} # 清空
     
     # 保存数据为json格式
     # json.dump(data, open("./data/data.json", 'w', encoding='utf-8'), ensure_ascii=False, indent=4)
 
     # 保存数据为txt格式
-    with open("./data/data.txt", 'w', encoding='utf-8') as f:
-        for piece in data:
-            for i in range(len(piece["text"])):
-                f.write(piece["text"][i] + " " + piece["label"][i] + "\n")
-            f.write("\n")
+    with open("./data/data.txt", 'w', encoding='utf-8') as f: # 打开文件
+        for piece in data: # 遍历数据
+            for i in range(len(piece["text"])): # 遍历文本
+                f.write(piece["text"][i] + " " + piece["label"][i] + "\n") # 写入文本和标签
+            f.write("\n") # 写入换行符
 
-    return data
+    return data # 返回数据
 
 def add_line_sp():
     # 添加分隔符(每个30行加一次)

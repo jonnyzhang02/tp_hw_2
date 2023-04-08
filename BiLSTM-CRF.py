@@ -1,3 +1,13 @@
+'''
+Author: jonnyzhang02 71881972+jonnyzhang02@users.noreply.github.com
+Date: 2023-04-04 21:45:26
+LastEditors: jonnyzhang02 71881972+jonnyzhang02@users.noreply.github.com
+LastEditTime: 2023-04-08 22:48:08
+FilePath: \知识图谱作业2\BiLSTM-CRF.py
+Description: coded by ZhangYang@BUPT, my email is zhangynag0207@bupt.edu.cn
+
+Copyright (c) 2023 by zhangynag0207@bupt.edu.cn, All Rights Reserved. 
+'''
 import json
 
 import torch
@@ -24,16 +34,16 @@ def log_sum_exp(vec):
 
 class BiLSTM_CRF(nn.Module):
 	def __init__(self, vocab_size, tag_to_ix, embedding_dim, hidden_dim):
-		super(BiLSTM_CRF, self).__init__()
-		self.embedding_dim = embedding_dim
-		self.hidden_dim = hidden_dim
-		self.vocab_size = vocab_size
-		self.tag_to_ix = tag_to_ix
-		self.tagset_size = len(tag_to_ix)
+		super(BiLSTM_CRF, self).__init__() # 继承父类的初始化方法
+		self.embedding_dim = embedding_dim # 词嵌入维度
+		self.hidden_dim = hidden_dim # LSTM的隐层维度
+		self.vocab_size = vocab_size # 词典大小
+		self.tag_to_ix = tag_to_ix # {'O': 0, 'B-LOC': 1, 'I-LOC': 2, 'B-PER': 3, 'I-PER': 4}
+		self.tagset_size = len(tag_to_ix) # 5
 
-		self.word_embeds = nn.Embedding(vocab_size, embedding_dim)
-		self.lstm = nn.LSTM(embedding_dim, hidden_dim // 2, num_layers=1, bidirectional=True)
-		self.hidden2tag = nn.Linear(hidden_dim, self.tagset_size)
+		self.word_embeds = nn.Embedding(vocab_size, embedding_dim) # 词嵌入层
+		self.lstm = nn.LSTM(embedding_dim, hidden_dim // 2, num_layers=1, bidirectional=True) # BiLSTM
+		self.hidden2tag = nn.Linear(hidden_dim, self.tagset_size) # 将BiLSTM的输出转换为发射矩阵的维度
 		# 转移矩阵，transitions[i][j]表示从label_j转移到label_i的概率,虽然是随机生成的但是后面会迭代更新
 		self.transitions = nn.Parameter(torch.randn(self.tagset_size, self.tagset_size))
 
@@ -43,16 +53,16 @@ class BiLSTM_CRF(nn.Module):
 		self.hidden = self.init_hidden() # 随机初始化LSTM的输入(h_0, c_0)
 
 	def init_hidden(self):
-		return (torch.randn(2, 1, self.hidden_dim // 2),
-				torch.randn(2, 1, self.hidden_dim // 2))
+		return (torch.randn(2, 1, self.hidden_dim // 2), # h_0
+				torch.randn(2, 1, self.hidden_dim // 2)) # c_0
 
 	def _forward_alg(self, feats):
 		'''
 		输入：发射矩阵(emission score)，实际上就是LSTM的输出——sentence的每个word经BiLSTM后，对应于每个label的得分
 		输出：所有可能路径得分之和/归一化因子/配分函数/Z(x)
 		'''
-		init_alphas = torch.full((1, self.tagset_size), -10000.)
-		init_alphas[0][self.tag_to_ix[START_TAG]] = 0.
+		init_alphas = torch.full((1, self.tagset_size), -10000.) # 1*5
+		init_alphas[0][self.tag_to_ix[START_TAG]] = 0. # 1*5s
 
 		# 包装到一个变量里面以便自动反向传播
 		forward_var = init_alphas
@@ -153,7 +163,8 @@ class BiLSTM_CRF(nn.Module):
 
 START_TAG = "<START>"
 STOP_TAG = "<STOP>"
-EMBEDDING_DIM = 5 # 由于标签一共有B\I\O\START\STOP 5个，所以embedding_dim为5
+EMBEDDING_DIM = 6 
+# 由于标签一共有O， B-LOCATION, I-LOCATION， B-TIME，START_TAG ，STOP_TAG6个，所以embedding_dim为6
 HIDDEN_DIM = 4 # 这其实是BiLSTM的隐藏层的特征数量，因为是双向所以是2倍，单向为2
 
 data = json.load(open('./data/data.json', 'r', encoding='utf-8'))
@@ -181,22 +192,22 @@ print(model)
 
 i = 0
 for epoch in range(1):
-	for piece in data:
-		sentence = piece["text"]
-		tags = piece["label"]
-		model.zero_grad()
+	for piece in data: # 对每个句子进行训练
+		sentence = piece["text"] # 句子
+		tags = piece["label"] # 标签
+		model.zero_grad() # 梯度清零
 		
         # 输入
-		sentence_in = prepare_sequence(sentence, word_to_ix)
-		targets = torch.tensor([tag_to_ix[t] for t in tags], dtype=torch.long)
+		sentence_in = prepare_sequence(sentence, word_to_ix) # 将句子转化为索引
+		targets = torch.tensor([tag_to_ix[t] for t in tags], dtype=torch.long) # 将标签转化为索引
 		
         # 获取loss
-		loss = model.neg_log_likelihood(sentence_in, targets)
-		print(i/len(data), "\tloss:", loss.item())
-		i += 1
+		loss = model.neg_log_likelihood(sentence_in, targets) # 计算损失
+		print(i/len(data), "\tloss:", loss.item()) # 打印损失
+		i += 1 
         # 反向传播
-		loss.backward()
-		optimizer.step()
+		loss.backward() # 反向传播
+		optimizer.step() # 更新参数
 
 model.eval()
 # 保存模型
