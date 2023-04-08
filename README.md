@@ -1,5 +1,7 @@
 # 知识图谱作业二
 
+**2020212185 张扬**
+
 ------
 
 **内容**：基于给定的暴雨洪涝中文语料库，利用已人工标注的样本作为训练集合测试集，基于深度学习和预训练模型，编程实现暴雨洪涝中文文本中的发生时间和发生地点两类实体的识别和抽取。
@@ -18,6 +20,8 @@
 [TOC]
 
 ![map](./assets/map.png)
+
+主要使用包的版本见`requirements.txt`
 
 ## 一、数据处理
 
@@ -225,13 +229,13 @@ tag_to_ix = {"O": 0, "B-LOCATION": 1, "I-LOCATION": 2, "B-TIME": 3, "I-TIME": 4,
 
 `BiLSTM-CRF`网络是一种常用于序列标注任务的深度学习模型，它的结构和特点如下：
 
-##### 结构：
+##### `BiLSTM-CRF`结构
 
 `BiLSTM-CRF`网络由两部分组成，即**双向长短时记忆网络**（BiLSTM）和**条件随机场**（CRF）层。`BiLSTM`层是一种具有**记忆功能的循环神经网络**，它可以有效地捕捉序列中的**上下文信息**。CRF层是一种**判别模型**，它可以考虑序列中所有标签之间的**依赖关系**，从而进行更准确的标注预测。
 
 ![The BiLSTM-CRF model. CS: confidence score; BiLSTM: bidirectional long short-term memory; CRF: conditional random field.](./assets/The-BiLSTM-CRF-model-CS-confidence-score-BiLSTM-bidirectional-long-short-term-memory.png)
 
-##### 特点：
+##### `BiLSTM-CRF`特点
 
 `BiLSTM-CRF`网络具有以下特点：
 
