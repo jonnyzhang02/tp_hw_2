@@ -6,7 +6,7 @@ LastEditTime: 2023-04-08 22:17:47
 FilePath: \知识图谱作业2\dispose_data.py
 Description: coded by ZhangYang@BUPT, my email is zhangynag0207@bupt.edu.cn
 
-Copyright (c) 2023 by zhangynag0207@bupt.edu.cn, All Rights Reserved. 
+Copyright (c) 2023 by zhangyang0207@bupt.edu.cn, All Rights Reserved. 
 '''
 import os
 import re

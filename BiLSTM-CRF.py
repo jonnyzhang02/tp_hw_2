@@ -6,7 +6,7 @@ LastEditTime: 2023-04-09 19:12:26
 FilePath: \知识图谱作业2\BiLSTM-CRF.py
 Description: coded by ZhangYang@BUPT, my email is zhangynag0207@bupt.edu.cn
 
-Copyright (c) 2023 by zhangynag0207@bupt.edu.cn, All Rights Reserved. 
+Copyright (c) 2023 by zhangyang0207@bupt.edu.cn, All Rights Reserved. 
 '''
 import json
 
