@@ -1,7 +1,5 @@
 # 知识图谱作业二
 
-**2020212185 张扬**
-
 ------
 
 **内容**：基于给定的暴雨洪涝中文语料库，利用已人工标注的样本作为训练集合测试集，基于深度学习和预训练模型，编程实现暴雨洪涝中文文本中的发生时间和发生地点两类实体的识别和抽取。
@@ -170,15 +168,15 @@ return data # 返回数据
 
 `EMBEDDING_DIM` 是词向量的维度，`HIDDEN_DIM` 是`BiLSTM`的隐藏层的特征数量，因为是双向所以是2倍，单向为2。
 
-`EMBEDDING_DIM` 为6，是因为标签一共有`O`， `B-LOCATION`, `I-LOCATION`， `B-TIME`，`START_TAG` ，`STOP_TAG`6个。
+由于标签一共有`O`， `B-LOCATION`, `I-LOCATION`， `B-TIME`, `I-TIME`，`START_TAG` ，`STOP_TAG7`个，所以`embedding_dim`为7
 
 然后打开`'./data/data.json'`文件，读取数据。
 
 ```python
 START_TAG = "<START>"
 STOP_TAG = "<STOP>"
-EMBEDDING_DIM = 5 
-# 由于标签一共有O， B-LOCATION, I-LOCATION， B-TIME，START_TAG ，STOP_TAG6个，所以embedding_dim为6
+EMBEDDING_DIM = 7 
+# 由于标签一共有O， B-LOCATION, I-LOCATION， B-TIME, I-TIME，START_TAG ，STOP_TAG7个，所以embedding_dim为7
 HIDDEN_DIM = 4 # 这其实是BiLSTM的隐藏层的特征数量，因为是双向所以是2倍，单向为2
 
 data = json.load(open('./data/data.json', 'r', encoding='utf-8'))
@@ -282,7 +280,7 @@ print(model)
 
 如图所示为输出，左侧为进度，右侧为`loss`
 
-![image-20230408230400495](./assets/image-20230408230400495.png)
+![image-20230409164917771](./assets/image-20230409164917771.png)
 
 ### 2.4 训练模型
 
@@ -328,3 +326,44 @@ with torch.no_grad():
 ```
 
 保存模型为`model.pkl`。
+
+## 三. 测试模型
+
+### 评价模型的查全率、查准率和F1
+
+````python
+# 评价模型的查全率、查准率和F1
+def evaluate(model, data):
+    model.eval()
+    TP = 0
+    FP = 0
+    FN = 0
+    for piece in data[:10]:
+        sentence = piece["text"] # 句子
+        tags = piece["label"]   # 标签
+        sentence_in = prepare_sequence(sentence, word_to_ix)    # 将句子转化为索引
+        targets = torch.tensor([tag_to_ix[t] for t in tags], dtype=torch.long) # 将标签转化为索引
+        score, tag_seq = model(sentence_in)# 预测
+        print("sentence:", sentence)
+        print("targets:", targets)
+        print("tag_seq:", tag_seq)
+        for i in range(len(tag_seq)): # 计算TP、FP、FN
+            if tag_seq[i] == 1 or tag_seq[i] == 2:
+                if tag_seq[i] == targets[i]:
+                    TP += 1
+                else:
+                    FP += 1
+            else:
+                if tag_seq[i] != targets[i]:
+                    FN += 1
+    P = TP / (TP + FP)
+    R = TP / (TP + FN)
+    F1 = 2 * P * R / (P + R)
+    print("P:", P, "R:", R, "F1:", F1)
+
+evaluate(model, data)
+```
+
+````
+
+![image-20230409191203334](./assets/image-20230409191203334.png)

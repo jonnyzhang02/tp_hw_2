@@ -2,7 +2,7 @@
 Author: jonnyzhang02 71881972+jonnyzhang02@users.noreply.github.com
 Date: 2023-04-04 21:45:26
 LastEditors: jonnyzhang02 71881972+jonnyzhang02@users.noreply.github.com
-LastEditTime: 2023-04-08 22:48:08
+LastEditTime: 2023-04-09 19:12:26
 FilePath: \知识图谱作业2\BiLSTM-CRF.py
 Description: coded by ZhangYang@BUPT, my email is zhangynag0207@bupt.edu.cn
 
@@ -38,13 +38,14 @@ class BiLSTM_CRF(nn.Module):
 		self.embedding_dim = embedding_dim # 词嵌入维度
 		self.hidden_dim = hidden_dim # LSTM的隐层维度
 		self.vocab_size = vocab_size # 词典大小
-		self.tag_to_ix = tag_to_ix # {'O': 0, 'B-LOC': 1, 'I-LOC': 2, 'B-PER': 3, 'I-PER': 4}
-		self.tagset_size = len(tag_to_ix) # 5
+		self.tag_to_ix = tag_to_ix # {"O": 0, "B-LOCATION": 1, "I-LOCATION": 2, "B-TIME": 3, "I-TIME": 4, START_TAG: 5, STOP_TAG: 6}
+		self.tagset_size = len(tag_to_ix) # 7
 
 		self.word_embeds = nn.Embedding(vocab_size, embedding_dim) # 词嵌入层
 		self.lstm = nn.LSTM(embedding_dim, hidden_dim // 2, num_layers=1, bidirectional=True) # BiLSTM
 		self.hidden2tag = nn.Linear(hidden_dim, self.tagset_size) # 将BiLSTM的输出转换为发射矩阵的维度
 		# 转移矩阵，transitions[i][j]表示从label_j转移到label_i的概率,虽然是随机生成的但是后面会迭代更新
+
 		self.transitions = nn.Parameter(torch.randn(self.tagset_size, self.tagset_size))
 
 		self.transitions.data[tag_to_ix[START_TAG], :] = -10000  # 从任何标签转移到START_TAG不可能
@@ -53,16 +54,20 @@ class BiLSTM_CRF(nn.Module):
 		self.hidden = self.init_hidden() # 随机初始化LSTM的输入(h_0, c_0)
 
 	def init_hidden(self):
-		return (torch.randn(2, 1, self.hidden_dim // 2), # h_0
-				torch.randn(2, 1, self.hidden_dim // 2)) # c_0
+		res = (torch.randn(2, 1, self.hidden_dim // 2, ), # h_0
+				torch.randn(2, 1, self.hidden_dim // 2, )) 
+		if torch.cuda.is_available():
+			return (res[0].cuda(), res[1].cuda())
 
 	def _forward_alg(self, feats):
 		'''
 		输入：发射矩阵(emission score)，实际上就是LSTM的输出——sentence的每个word经BiLSTM后，对应于每个label的得分
 		输出：所有可能路径得分之和/归一化因子/配分函数/Z(x)
 		'''
-		init_alphas = torch.full((1, self.tagset_size), -10000.) # 1*5
-		init_alphas[0][self.tag_to_ix[START_TAG]] = 0. # 1*5s
+		init_alphas = torch.full((1, self.tagset_size), -10000.) # 1*7
+		if torch.cuda.is_available():
+			init_alphas = init_alphas.cuda()
+		init_alphas[0][self.tag_to_ix[START_TAG]] = 0. # 1*7s
 
 		# 包装到一个变量里面以便自动反向传播
 		forward_var = init_alphas
@@ -89,7 +94,11 @@ class BiLSTM_CRF(nn.Module):
 		输出：序列中每个字符的Emission Score
 		'''
 		self.hidden = self.init_hidden() # (h_0, c_0)
-		embeds = self.word_embeds(sentence).view(len(sentence), 1, -1)
+		if torch.cuda.is_available():
+			sentence = sentence.cuda()
+		embeds = self.word_embeds(sentence).view(len(sentence), 1, -1) # len(s)*1*5
+		if torch.cuda.is_available():
+			embeds = embeds.cuda()		
 		lstm_out, self.hidden = self.lstm(embeds, self.hidden)
 		lstm_out = lstm_out.view(len(sentence), self.hidden_dim)
 		lstm_feats = self.hidden2tag(lstm_out) # len(s)*5
@@ -102,7 +111,11 @@ class BiLSTM_CRF(nn.Module):
 		'''
 		score = torch.zeros(1)
 		# 将START_TAG的标签３拼接到tag序列最前面
-		tags = torch.cat([torch.tensor([self.tag_to_ix[START_TAG]], dtype=torch.long), tags])
+		device = torch.device('cuda:0')
+		tags = torch.cat([torch.tensor([self.tag_to_ix[START_TAG]], dtype=torch.long, device=device), tags])
+		if torch.cuda.is_available():
+			score = score.cuda()
+			tags = tags.cuda()
 		for i, feat in enumerate(feats):
 			score = score + \
 					self.transitions[tags[i + 1], tags[i]] + feat[tags[i + 1]]
@@ -114,6 +127,8 @@ class BiLSTM_CRF(nn.Module):
 		backpointers = []
 
 		init_vvars = torch.full((1, self.tagset_size), -10000.)
+		if torch.cuda.is_available():
+			init_vvars = init_vvars.cuda()
 		init_vvars[0][self.tag_to_ix[START_TAG]] = 0
 
 		forward_var = init_vvars
@@ -163,8 +178,8 @@ class BiLSTM_CRF(nn.Module):
 
 START_TAG = "<START>"
 STOP_TAG = "<STOP>"
-EMBEDDING_DIM = 6 
-# 由于标签一共有O， B-LOCATION, I-LOCATION， B-TIME，START_TAG ，STOP_TAG6个，所以embedding_dim为6
+EMBEDDING_DIM = 7 
+# 由于标签一共有O， B-LOCATION, I-LOCATION， B-TIME, I-TIME，START_TAG ，STOP_TAG7个，所以embedding_dim为7
 HIDDEN_DIM = 4 # 这其实是BiLSTM的隐藏层的特征数量，因为是双向所以是2倍，单向为2
 
 data = json.load(open('./data/data.json', 'r', encoding='utf-8'))
@@ -188,31 +203,76 @@ tag_to_ix = {"O": 0, "B-LOCATION": 1, "I-LOCATION": 2, "B-TIME": 3, "I-TIME": 4,
 
 model = BiLSTM_CRF(len(word_to_ix), tag_to_ix, EMBEDDING_DIM, HIDDEN_DIM)
 optimizer = optim.SGD(model.parameters(), lr=0.01, weight_decay=1e-4)
-print(model)
+print("model structure:\n",model)
 
-i = 0
-for epoch in range(1):
-	for piece in data: # 对每个句子进行训练
+is_train = True
+
+if is_train:
+
+	if torch.cuda.is_available():
+		model.cuda()
+		print("cuda is available")
+
+	i = 0
+	for epoch in range(1):
+		for piece in data: # 对每个句子进行训练
+			sentence = piece["text"] # 句子
+			tags = piece["label"] # 标签
+			model.zero_grad() # 梯度清零
+			
+			# 输入
+			sentence_in = prepare_sequence(sentence, word_to_ix) # 将句子转化为索引
+			targets = torch.tensor([tag_to_ix[t] for t in tags], dtype=torch.long) # 将标签转化为索引
+			if torch.cuda.is_available():
+				sentence_in = sentence_in.cuda()
+				targets = targets.cuda()
+				# print("cuda is available")
+			
+			# 获取loss
+			loss = model.neg_log_likelihood(sentence_in, targets) # 计算损失
+			if i % 10 == 0:
+				print("process:",i/len(data)*100, "%\tloss:", loss.item()) # 打印损失
+			i += 1 
+			# 反向传播
+			loss.backward() # 反向传播
+			optimizer.step() # 更新参数
+
+	model.eval()
+	# 保存模型
+	torch.save(model, './model.pkl')
+
+else:
+	model = torch.load('./model.pkl')
+	model.eval()
+
+# with torch.no_grad():
+# 	precheck_sent = prepare_sequence(data[0]["text"], word_to_ix) # 将句子转化为索引
+# 	print(model(precheck_sent))# 查看预测结果
+
+# 评价模型的查全率、查准率和F1
+def evaluate(model, data):
+	model.eval()
+	TP = 0
+	FP = 0
+	FN = 0
+	for piece in data[:1]:
 		sentence = piece["text"] # 句子
-		tags = piece["label"] # 标签
-		model.zero_grad() # 梯度清零
-		
-        # 输入
-		sentence_in = prepare_sequence(sentence, word_to_ix) # 将句子转化为索引
+		tags = piece["label"]	# 标签
+		sentence_in = prepare_sequence(sentence, word_to_ix)	# 将句子转化为索引
 		targets = torch.tensor([tag_to_ix[t] for t in tags], dtype=torch.long) # 将标签转化为索引
-		
-        # 获取loss
-		loss = model.neg_log_likelihood(sentence_in, targets) # 计算损失
-		print(i/len(data), "\tloss:", loss.item()) # 打印损失
-		i += 1 
-        # 反向传播
-		loss.backward() # 反向传播
-		optimizer.step() # 更新参数
+		score, tag_seq = model(sentence_in)	# 预测
+		for i in range(len(tag_seq)): 	# 计算TP、FP、FN
+			if tag_seq[i] == 1 or tag_seq[i] == 2:
+				if tag_seq[i] == targets[i]:
+					TP += 1
+				else:
+					FP += 1
+			else:
+				if tag_seq[i] != targets[i]:
+					FN += 1				
+	P = TP / (TP + FP)
+	R = TP / (TP + FN)
+	F1 = 2 * P * R / (P + R)
+	print("P:", P, "R:", R, "F1:", F1)
 
-model.eval()
-# 保存模型
-torch.save(model, './model.pkl')
-
-with torch.no_grad():
-	precheck_sent = prepare_sequence(data[0]["text"], word_to_ix)
-	print(model(precheck_sent))
+evaluate(model, data)
